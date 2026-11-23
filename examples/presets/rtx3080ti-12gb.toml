@@ -1,0 +1,134 @@
+# Example preset: measured on one RTX 3080 Ti (12 GB VRAM) with 64 GB RAM. This file is an example, not a default.
+# Copy it into the broker's config with `llm-broker setup --preset <file>`, or copy it by hand.
+
+[broker]
+service_host = "127.0.0.1"
+service_port = 1235
+backend_url = "http://127.0.0.1:1234"
+data_dir = "C:/Users/<user>/AppData/Local/LocalLLMBroker"
+queue_limit = 100
+max_body_bytes = 10485760
+max_text_bytes = 1048576  # ~262K tokens; each job must still fit its tier's context
+default_queue_timeout = 3600
+load_timeout = 300
+generation_timeout = 1800
+stalled_stream_timeout = 600  # LM Studio streams nothing during prefill; long 35B prompts take minutes
+max_stream_buffer_bytes = 1048576
+max_result_bytes = 2097152
+result_ttl_seconds = 600
+metadata_ttl_days = 30
+# Unload the loaded model after this many seconds with no running or queued jobs (0 = never).
+idle_unload_seconds = 600
+
+# Keep these model IDs aligned with the installed LM Studio catalog.
+# Context length is set per load tier in [tiers] below, not per profile.
+# parallel_ceiling is sent with every tier load as LM Studio's "Max Concurrent Predictions". Parallel jobs share
+# the tier's context; the broker starts a job only when it fits beside the running ones.
+[profiles.4b]
+description = "Small tasks that need reasoning. Thinks before answering."
+thinks = true
+model_id = "qwen/qwen3-4b-thinking-2507"
+parallel_ceiling = 4
+variant = "qwen/qwen3-4b-thinking-2507@q4_k_m"
+
+# Same size as 4b, but this model does not think. Use it for grunt work where reasoning only costs time.
+[profiles.4b-nothink]
+description = "Grunt work: mechanical transformations, short summaries, repetitive drafts. Does not think."
+model_id = "qwen/qwen3-4b-2507"
+parallel_ceiling = 4
+variant = "qwen/qwen3-4b-2507@q4_k_m"
+
+[profiles.9b]
+description = "More nuanced extraction, review, or drafting."
+thinks = true
+supports_vision = true
+model_id = "qwen/qwen3.5-9b"
+parallel_ceiling = 3
+variant = "qwen/qwen3.5-9b@q4_k_m"
+
+[profiles.35b]
+description = "A difficult task that justifies a slow first load and about 30 to 40 tokens a second."
+thinks = true
+supports_vision = true
+model_id = "qwen/qwen3.6-35b-a3b"
+parallel_ceiling = 1
+variant = "qwen/qwen3.6-35b-a3b@q4_k_m"
+
+# Thinking-off variants load the same model and share its tiers.
+[profiles.9b-nothink]
+description = "Same 9B model with thinking off. More quality than the 4B, without reasoning time."
+reasoning_effort = "none"
+supports_vision = true
+model_id = "qwen/qwen3.5-9b"
+parallel_ceiling = 3
+variant = "qwen/qwen3.5-9b@q4_k_m"
+
+[profiles.35b-nothink]
+description = "Same 35B model with thinking off. Quality without reasoning time."
+reasoning_effort = "none"
+supports_vision = true
+model_id = "qwen/qwen3.6-35b-a3b"
+parallel_ceiling = 1
+variant = "qwen/qwen3.6-35b-a3b@q4_k_m"
+
+# Load tiers, keyed by model ID. A job sets tier = "low" | "medium" | "high"; without one, the broker picks the
+# smallest tier the job fits (and runs it on a larger tier of the same model if that is already loaded).
+#   low     fastest load and generation, shortest context
+#   medium  more context; on the 9B and 35B a q8_0 cache, which costs them little speed
+#   high    largest context; slowest (q8_0 cache on all, and on the 35B the most expert layers on the CPU)
+# These values are sent with every load and override LM Studio's saved preset for the same settings.
+# They are starting values sized for a 12 GB RTX 3080 Ti; run `python -m local_llm_broker.cli calibrate`
+# after changing them. A tier much slower than "low" has overflowed VRAM into shared memory.
+# Settings: context_length, kv_cache (f16 | q8_0 | q4_0), flash_attention, eval_batch_size,
+# cpu_expert_ratio (MoE only: share of expert layers in system RAM), try_mmap.
+[tiers."qwen/qwen3-4b-thinking-2507".low]
+context_length = 16384
+kv_cache = "f16"
+[tiers."qwen/qwen3-4b-thinking-2507".medium]
+context_length = 49152
+kv_cache = "f16"
+# Calibrated 2026-11-04 (calibrate --mode search): f16 fits up to 57344 and q8_0 up to 102400. A q8_0 cache costs
+# the 4B a lot of generation speed on long prompts (57 tok/s at 24K against about 130 with f16).
+[tiers."qwen/qwen3-4b-thinking-2507".high]
+context_length = 81920
+kv_cache = "q8_0"
+
+[tiers."qwen/qwen3-4b-2507".low]
+context_length = 16384
+kv_cache = "f16"
+[tiers."qwen/qwen3-4b-2507".medium]
+context_length = 49152
+kv_cache = "f16"
+[tiers."qwen/qwen3-4b-2507".high]
+context_length = 81920
+kv_cache = "q8_0"
+
+# Calibrated 2026-11-04: q8_0 fits up to 258048 (f16 147456), but 196608 overflowed on 2026-11-03, so high is 163840.
+[tiers."qwen/qwen3.5-9b".low]
+context_length = 32768
+kv_cache = "f16"
+[tiers."qwen/qwen3.5-9b".medium]
+context_length = 131072
+kv_cache = "q8_0"
+[tiers."qwen/qwen3.5-9b".high]
+context_length = 163840
+kv_cache = "q8_0"
+
+# Each step up moves more of the 40 expert layers to the CPU (26, 27, 31) to make room for the cache. Calibrated
+# 2026-11-04: at 32768 f16, ratio 0.65 generates fastest (40.8 tok/s); 0.55 and below overflow. q8_0 at 0.775 fits 262144.
+# mmap stays off: with it on, the CPU-side experts are read from the model file and prompt processing is slow.
+[tiers."qwen/qwen3.6-35b-a3b".low]
+context_length = 32768
+kv_cache = "f16"
+cpu_expert_ratio = 0.65
+try_mmap = false
+[tiers."qwen/qwen3.6-35b-a3b".medium]
+context_length = 131072
+kv_cache = "q8_0"
+cpu_expert_ratio = 0.675
+try_mmap = false
+[tiers."qwen/qwen3.6-35b-a3b".high]
+context_length = 262144
+kv_cache = "q8_0"
+cpu_expert_ratio = 0.775
+try_mmap = false

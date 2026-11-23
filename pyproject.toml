@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "local-llm-broker"
+version = "0.1.0"
+description = "A local-only FIFO broker for LM Studio inference"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [{name = "DrTinkle"}]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.111,<1",
+  "httpx>=0.27,<1",
+  "uvicorn>=0.29,<1",
+  # Tier loads use SDK internals (see lms_sdk.py); check them before raising this pin.
+  "lmstudio==1.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "pytest-asyncio>=0.23",
+  "ruff>=0.5",
+  "mypy>=1.10",
+]
+
+[project.scripts]
+llm-broker = "local_llm_broker.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+strict = true
+ignore_missing_imports = true
+

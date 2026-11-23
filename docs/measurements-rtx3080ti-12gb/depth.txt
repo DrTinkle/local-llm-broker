@@ -1,0 +1,60 @@
+4b-nothink low (16,384 context), load and first reply: 12.2 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,566            0.3 s          5,573       166.0   ok
+               6,116            1.1 s          5,673       149.8   ok
+
+4b-nothink medium (32,768 context), load and first reply: 3.8 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,566            0.2 s          6,264       170.0   ok
+               6,116            1.0 s          5,932       152.0   ok
+              12,182            2.4 s          4,997       131.8   ok
+                   -                -              -           -   failed: context_exceeded
+
+4b-nothink high (65,536 context), load and first reply: 3.5 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,566            0.3 s          5,553       152.5   ok
+               6,116            1.1 s          5,673       108.4   ok
+              12,182            2.5 s          4,844        82.1   ok
+              24,310            6.3 s          3,842        56.9   ok
+
+9b-nothink low (32,768 context), load and first reply: 12.0 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,571            0.7 s          2,235       108.5   ok
+               6,121            1.7 s          3,561       101.9   ok
+              12,187            3.2 s          3,787       102.3   ok
+                   -                -              -           -   failed: context_exceeded
+
+9b-nothink medium (65,536 context), load and first reply: 6.8 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,571            0.5 s          2,959        95.4   ok
+               6,121            1.6 s          3,732        97.2   ok
+              12,187            3.2 s          3,824        89.3   ok
+              24,315            6.6 s          3,679        80.0   ok
+
+9b-nothink high (131,072 context), load and first reply: 6.5 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,571            0.5 s          3,142       101.3   ok
+               6,121            1.6 s          3,767        98.7   ok
+              12,187            3.2 s          3,767        93.5   ok
+              24,315            6.5 s          3,714        82.2   ok
+
+35b-nothink low (32,768 context), load and first reply: 34.4 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,572            4.2 s            371        30.0   ok
+               6,122           13.1 s            469        31.4   ok
+              12,188           25.1 s            485        33.3   ok
+                   -                -              -           -   failed: context_exceeded
+
+35b-nothink medium (131,072 context), load and first reply: 23.9 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,572            3.7 s            428        41.4   ok
+               6,122           11.4 s            539        44.2   ok
+              12,188           22.6 s            539        43.3   ok
+              24,316           46.7 s            521        41.1   ok
+
+35b-nothink high (262,144 context), load and first reply: 21.3 s
+  real prompt tokens   to first token   prompt tok/s   gen tok/s   outcome
+               1,572            2.4 s            653        38.9   ok
+               6,122            7.9 s            779        37.9   ok
+              12,188           15.1 s            807        35.1   ok
+              24,316           30.3 s            802        35.6   ok

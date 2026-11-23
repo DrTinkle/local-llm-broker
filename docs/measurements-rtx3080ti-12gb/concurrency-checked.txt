@@ -1,0 +1,116 @@
+4b-nothink low (16,384 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            163.8           162.6   all finished
+             2            168.5           153.7   all finished
+             3            141.2           147.5   all finished
+             4            193.4           120.7   all finished
+  usable slots: 4 of 4
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                   4,666         28%   all finished
+           90%                   9,560         58%   all finished
+          120%                  13,232         81%   all finished
+          150%                  16,944        103%   all finished
+          180%                  20,584        126%   all finished
+
+4b-nothink medium (49,152 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            163.8           162.6   all finished
+             2            164.9           151.1   all finished
+             3            148.1           140.8   all finished
+             4            201.5           123.8   all finished
+  usable slots: 4 of 4
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  16,925         34%   all finished
+           90%                  31,634         64%   all finished
+          120%                  42,728         87%   all finished
+          150%                  53,771        109%   all finished
+          180%                  64,845        132%   all finished
+
+4b-nothink high (81,920 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            141.0           140.0   all finished
+             2            137.1           125.2   all finished
+             3            134.0           124.7   all finished
+             4            123.8           100.9   all finished
+  usable slots: 1 of 4
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  29,197         36%   all finished
+           90%                  53,764         66%   all finished
+          120%                  72,203         88%   all finished
+          150%                  90,629        111%   all finished
+          180%                 109,072        133%   all finished
+
+9b-nothink low (32,768 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             98.0            97.3   all finished
+             2            100.9            80.8   all finished
+             3            112.0            86.9   all finished
+  usable slots: 1 of 3
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  11,220         34%   all finished
+           90%                  21,037         64%   all finished
+          120%                  28,405         87%   all finished
+          150%                  35,798        109%   all finished
+          180%                  43,167        132%   all finished
+
+9b-nothink medium (131,072 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             97.5            96.7   all finished
+             2            138.0            75.5   all finished
+             3            106.1            83.4   all finished
+  usable slots: 2 of 3
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  48,092         37%   all finished
+           90%                  87,417         67%   all finished
+          120%                 116,920         89%   all finished
+          150%                 146,367        112%   all finished
+          180%                 175,903        134%   all finished
+
+9b-nothink high (163,840 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             82.5            81.8   all finished
+             2             95.6            80.8   all finished
+             3            103.9            80.5   all finished
+  usable slots: 2 of 3
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  60,356         37%   all finished
+           90%                 109,527         67%   all finished
+          120%                 146,367         89%   all finished
+          150%                 183,268        112%   all finished
+          180%                 220,182        134%   all finished
+
+35b-nothink low (32,768 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             38.5            38.3   all finished
+             2             32.5            20.3   all finished (1 hit the output limit)
+  usable slots: 1 of 2
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  11,657         36%   all finished
+           90%                  21,497         66%   all finished
+          120%                  28,829         88%   all finished
+          150%                  36,200        110%   all finished
+          180%                  43,584        133%   all finished
+
+35b-nothink medium (131,072 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             38.2            38.0   all finished
+             2             33.2            21.2   all finished (2 hit the output limit)
+  usable slots: 1 of 2
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  48,503         37%   all finished
+           90%                  87,820         67%   all finished
+          120%                 117,307         89%   all finished
+          150%                 146,822        112%   all finished
+          180%                 176,340        135%   all finished
+
+35b-nothink high (262,144 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             34.6            34.4   all finished
+             2             31.8            20.0   all finished (1 hit the output limit)
+  usable slots: 1 of 2
+  planned fill   real tokens (all jobs)   real fill   outcome
+           50%                  97,666         37%   all finished
+           90%                 176,335         67%   all finished
+          120%                 235,336         90%   all finished
+          150%                 294,342        112%   all finished
+          180%                 353,372        135%   all finished

@@ -1,0 +1,17 @@
+bytes per token (the broker assumes 4; lower means the broker underestimates)
+  content             4b-nothink    9b-nothink
+  English prose             5.33          5.33
+  Finnish prose             2.67          3.23
+  Python code               2.83          2.72
+  JSON                      2.13          1.90
+  CSV numbers               1.00          1.00
+  Log lines                 1.41          1.41
+  Markdown table            1.84          1.74
+  lowest: 1.00 bytes per token, so the broker's estimate can be 4.0x too low
+
+tokens per image (the broker counts 1200)
+  side        9b-nothink   35b-nothink
+  256px               66            66
+  512px              258           258
+  1024px            1026          1026
+  1536px            2306          2306

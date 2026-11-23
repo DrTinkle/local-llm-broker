@@ -1,0 +1,77 @@
+qwen/qwen3-4b-2507, f16 cache
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384    6,571/12,288 MiB          5,940       130.9   baseline
+   45,056   10,568/12,288 MiB          6,124       136.9   yes
+   53,248   11,159/12,288 MiB          5,934       140.6   yes
+   57,344   11,740/12,288 MiB          5,940       138.4   yes
+   61,440   11,944/12,288 MiB            173        66.2   no
+   77,824   11,774/12,288 MiB            234        17.3   no
+  139,264   11,779/12,288 MiB            169         8.9   no
+  262,144   11,818/12,288 MiB            125         6.5   no
+  largest context that fits: 57,344
+
+qwen/qwen3-4b-2507, q8_0 cache
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384    4,891/12,288 MiB          5,681       103.1   baseline
+   77,824    9,764/12,288 MiB          5,676       105.9   yes
+   90,112   10,694/12,288 MiB          5,676       105.1   yes
+   98,304   11,342/12,288 MiB          5,598       103.4   yes
+  102,400   11,670/12,288 MiB          5,762       105.1   yes
+  106,496   11,812/12,288 MiB            666        54.0   no
+  139,264   11,823/12,288 MiB             97         2.6   no
+  262,144   11,808/12,288 MiB             96         2.3   no
+  largest context that fits: 102,400
+
+qwen/qwen3.5-9b, f16 cache
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384    7,776/12,288 MiB          3,350        96.8   baseline
+  139,264   11,745/12,288 MiB          3,769        95.6   yes
+  143,360   11,619/12,288 MiB          3,921       105.6   yes
+  147,456   11,751/12,288 MiB          3,959       104.2   yes
+  151,552   11,819/12,288 MiB          1,593       104.2   no
+  167,936   11,958/12,288 MiB            402        90.3   no
+  200,704   11,920/12,288 MiB             62        18.8   no
+  262,144   11,764/12,288 MiB            123        19.5   no
+  largest context that fits: 147,456
+
+qwen/qwen3.5-9b, q8_0 cache
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384    7,315/12,288 MiB          3,842       100.3   baseline
+  139,264    9,661/12,288 MiB          3,921        99.1   yes
+  200,704   10,981/12,288 MiB          3,881       100.4   yes
+  229,376   11,597/12,288 MiB          3,881        95.6   yes
+  245,760   11,949/12,288 MiB          3,881        97.9   yes
+  253,952   11,939/12,288 MiB          3,921        99.1   yes
+  258,048   11,963/12,288 MiB          3,921       100.3   yes
+  262,144   11,989/12,288 MiB            439        96.8   no
+  largest context that fits: 258,048
+
+qwen/qwen3.6-35b-a3b, f16 cache, CPU expert ratio 0.625
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384   10,707/12,288 MiB            653        41.7   baseline
+   77,824   11,888/12,288 MiB            932        39.8   yes
+   90,112   11,934/12,288 MiB            908        43.9   yes
+   98,304   11,957/12,288 MiB            950        43.5   yes
+  102,400   11,961/12,288 MiB            320        43.7   no
+  106,496   11,976/12,288 MiB            289        44.4   no
+  139,264   11,946/12,288 MiB            526        45.1   no
+  262,144   11,974/12,288 MiB             55        11.5   no
+  largest context that fits: 98,304
+
+qwen/qwen3.6-35b-a3b, q8_0 cache, CPU expert ratio 0.625
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384   10,425/12,288 MiB            954        43.9   baseline
+   77,824   11,500/12,288 MiB            945        39.7   yes
+  106,496   11,829/12,288 MiB            934        44.4   yes
+  110,592   11,877/12,288 MiB            540        40.2   no
+  114,688   11,893/12,288 MiB            168        35.7   no
+  122,880   11,837/12,288 MiB            181        36.1   no
+  139,264   11,927/12,288 MiB            323        43.7   no
+  262,144   12,017/12,288 MiB              8         8.9   no
+  largest context that fits: 106,496
+
+qwen/qwen3.6-35b-a3b, q8_0 cache, CPU expert ratio 0.775
+  context    VRAM used/total   prompt tok/s   gen tok/s   fits
+   16,384    8,148/12,288 MiB            762        34.0   baseline
+  262,144   11,264/12,288 MiB            747        37.1   yes
+  largest context that fits: 262,144

@@ -1,0 +1,14 @@
+qwen/qwen3.6-35b-a3b: CPU expert ratio at 32,768 context, f16 cache
+  ratio    VRAM used/total   prompt tok/s   gen tok/s   fits
+   0.50   11,854/12,288 MiB             46        16.2   yes
+   0.55   12,008/12,288 MiB             77        28.4   no
+   0.60   11,838/12,288 MiB            921        38.3   yes
+   0.65   10,981/12,288 MiB            866        40.8   yes
+   0.70    9,990/12,288 MiB            842        37.3   yes
+   0.75    9,040/12,288 MiB            804        35.0   yes
+   0.80    8,179/12,288 MiB            792        36.1   yes
+   0.85    7,261/12,288 MiB            737        33.7   yes
+   0.90    6,233/12,288 MiB            709        33.2   yes
+   0.95    5,255/12,288 MiB            677        33.0   yes
+   1.00    4,764/12,288 MiB            675        31.0   yes
+  fastest that fits: ratio 0.65 (40.8 tok/s)

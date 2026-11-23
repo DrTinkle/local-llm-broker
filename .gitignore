@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+.test-tmp/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.superpowers/
+.runtime/
+runtime/
+*.sqlite3
+*.jsonl
+*.log
+secrets/
+
+
+# Local operator config (copied from config.example.toml)
+config.toml
+config.toml.bak-*
+.local-archive/
+tests/results/

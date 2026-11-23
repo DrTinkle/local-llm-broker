@@ -1,0 +1,63 @@
+Calibrating; each tier loads its model once. This can take several minutes.
+4b-nothink low (16,384 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            160.6           159.4   all finished
+             2            224.8           126.7   all finished
+             3            348.8           120.1   all finished
+             4            368.6            99.1   all finished
+  usable slots: 3 of 4
+
+4b-nothink medium (49,152 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            157.6           156.4   all finished
+             2            219.2           121.1   all finished
+             3            309.5           109.1   all finished
+             4            361.3            96.4   all finished
+  usable slots: 4 of 4
+
+4b-nothink high (81,920 context, 4 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            148.0           146.9   all finished
+             2            189.8           109.4   all finished
+             3            237.8            91.9   all finished
+             4            306.3            81.2   all finished
+  usable slots: 4 of 4
+
+9b-nothink low (32,768 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1            102.3           101.6   all finished
+             2            127.1            75.9   all finished
+             3            182.8            68.1   all finished
+  usable slots: 3 of 3
+
+9b-nothink medium (131,072 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             99.7            99.0   all finished
+             2            122.6            71.2   all finished
+             3            172.3            60.2   all finished
+  usable slots: 3 of 3
+
+9b-nothink high (163,840 context, 3 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             97.5            96.7   all finished
+             2            122.6            71.5   all finished
+             3            179.4            62.7   all finished
+  usable slots: 3 of 3
+
+35b-nothink low (32,768 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             39.7            39.5   all finished
+             2             40.2            22.4   all finished (2 hit the output limit)
+  usable slots: 1 of 2
+
+35b-nothink medium (131,072 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             37.3            37.1   all finished
+             2             24.9            17.8   all finished
+  usable slots: 1 of 2
+
+35b-nothink high (262,144 context, 2 slots)
+  jobs at once   combined tok/s   per-job tok/s   outcome
+             1             30.9            30.7   all finished
+             2             31.4            18.9   all finished (1 hit the output limit)
+  usable slots: 1 of 2

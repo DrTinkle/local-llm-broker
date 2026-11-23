@@ -1,0 +1,28 @@
+profile      tier     seconds loaded tier       ctx  par  think  out tok  answer
+4b-nothink   low          5.1 low             16384    4     no        3  '42'
+4b-nothink   medium       3.8 medium          49152    4     no        3  '42'
+4b-nothink   high         4.2 high            81920    4     no        3  '42'
+4b           low          6.9 low             16384    4    yes      394  '42'
+4b           medium       5.9 medium          49152    4    yes      394  '42'
+4b           high         6.4 high            81920    4    yes      394  '42'
+9b-nothink   low         11.5 low             32768    3     no        3  '42'
+9b           low          2.0 low             32768    3    yes      190  '42'
+9b-nothink   medium       7.3 medium         131072    3     no        3  '42'
+9b           medium       2.3 medium         131072    3    yes      210  '42'
+9b-nothink   high         6.8 high           163840    3     no        3  '42'
+9b           high         2.2 high           163840    3    yes      210  '42'
+35b-nothink  low         30.1 low             32768    1     no        3  '42'
+35b          low          4.7 low             32768    1    yes      159  '42'
+35b-nothink  medium      22.0 medium         131072    1     no        3  '42'
+35b          medium       5.0 medium         131072    1    yes      163  '42'
+35b-nothink  high        22.6 high           262144    1     no        3  '42'
+35b          high         5.3 high           262144    1    yes      163  '42'
+
+Two 35b-nothink jobs at once (high tier, already loaded):
+     0.0s  A sent
+     0.0s  B sent
+     5.9s  A done
+    12.5s  B done
+  most jobs running at once: 1; most waiting in queue: 1
+
+ALL PASSED

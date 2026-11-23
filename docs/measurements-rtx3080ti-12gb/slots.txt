@@ -1,0 +1,19 @@
+qwen/qwen3-4b-2507: slots at 16,384 context, f16 cache
+  slots    VRAM used/total   combined tok/s   per-job tok/s   outcome
+      4    6,010/12,288 MiB            286.0            88.4   all finished
+      6    6,011/12,288 MiB            303.5            67.9   all finished
+      8    6,008/12,288 MiB            307.7            53.6   all finished
+  fastest that fits: 8 slots (307.7 tok/s)
+
+qwen/qwen3.5-9b: slots at 32,768 context, f16 cache
+  slots    VRAM used/total   combined tok/s   per-job tok/s   outcome
+      2    8,442/12,288 MiB            168.4            84.9   all finished
+      3    8,492/12,288 MiB            206.4            69.6   all finished
+      4    8,626/12,288 MiB            220.7            57.7   all finished
+  fastest that fits: 4 slots (220.7 tok/s)
+
+qwen/qwen3.6-35b-a3b: slots at 32,768 context, f16 cache
+  slots    VRAM used/total   combined tok/s   per-job tok/s   outcome
+      1   11,425/12,288 MiB             37.1            36.9   all finished
+      2   11,477/12,288 MiB             51.9            26.1   all finished
+  fastest that fits: 2 slots (51.9 tok/s)

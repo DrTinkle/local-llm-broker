@@ -250,7 +250,8 @@ class Scheduler:
         self._queue: deque[str] = deque()
         self._active: dict[str, _Record] = {}
         self._loaded: LoadedModel | None = None
-        self._fresh_load = False
+        # True while the loaded model is known to be resident: set by a load or a passed check, cleared when a batch starts.
+        self._resident_ok = False
         # When the broker last became idle with a model loaded; None while jobs are running or queued.
         self._idle_since: float | None = None
         self._condition = asyncio.Condition()
@@ -590,13 +591,8 @@ class Scheduler:
             self._prune_metadata_if_due()
             await self._unload_if_idle()
             await self._count_ready()
-            if self._loaded is not None and not self._active:
-                if self._fresh_load:
-                    # Loaded by this loop on the previous pass; nothing outside the broker can have changed it yet.
-                    self._fresh_load = False
-                elif self._queue:
-                    await self._verify_resident()
             to_load: _Record | None = None
+            to_verify = False
             to_dispatch: list[_Record] = []
             async with self._condition:
                 self._expire_results_locked()
@@ -619,6 +615,10 @@ class Scheduler:
                     head.snapshot = self.store.transition(head.snapshot.job_id, JobState.PREPARING, backend_state="loading")
                     self._emit("load_started", head.snapshot, tier=head.tier)
                     to_load = head
+                elif not self._active and not self._resident_ok:
+                    # A new batch is about to start on the loaded model. Check it is still the only one loaded, outside
+                    # the lock, before any job is dispatched.
+                    to_verify = True
                 else:
                     assert self._loaded is not None  # _runs_on_loaded is true only with a loaded model
                     available = self._loaded.parallel_limit - len(self._active)
@@ -674,6 +674,7 @@ class Scheduler:
                         except TimeoutError:
                             pass
                         continue
+                    self._resident_ok = False
                     for record in to_dispatch:
                         self._active[record.snapshot.job_id] = record
                         record.snapshot = self.store.transition(
@@ -684,6 +685,10 @@ class Scheduler:
                             queue_seconds=max(0.0, time.monotonic() - record.submitted_at),
                         )
                         record.task = asyncio.create_task(self._run_job(record), name=f"job-{record.snapshot.job_id}")
+            if to_verify:
+                await self._verify_resident()
+                self._resident_ok = True
+                continue
             if to_load is not None:
                 try:
                     if to_load.tier is None:
@@ -709,7 +714,7 @@ class Scheduler:
                 else:
                     async with self._condition:
                         self._loaded = loaded
-                        self._fresh_load = True
+                        self._resident_ok = True
                         self._emit("load_finished", head.snapshot, load_seconds=loaded.load_seconds, tier=loaded.tier)
                         if head.cancel_requested:
                             self._queue.popleft()

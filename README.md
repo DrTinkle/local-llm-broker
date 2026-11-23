@@ -1,5 +1,7 @@
 # Local LLM Broker
 
+[![CI](https://github.com/DrTinkle/local-llm-broker/actions/workflows/ci.yml/badge.svg)](https://github.com/DrTinkle/local-llm-broker/actions/workflows/ci.yml)
+
 A local service, command-line client and agent skill that turn one LM Studio install into a shared, managed model server for every agent session on your machine.
 
 ## The problem

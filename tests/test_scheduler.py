@@ -288,6 +288,12 @@ async def test_model_unloaded_outside_the_broker_is_loaded_again_before_the_next
     try:
         first = (await scheduler.submit(spec("A", "4b"))).job_id
         await wait_for_all(scheduler, [first])
+        # The next job must start a new batch: wait until the scheduler has released the first one. A job that
+        # arrives while another is still active joins its batch, and a slow machine would hit that case.
+        for _ in range(200):
+            if scheduler.status()["backend_state"] == "idle":
+                break
+            await asyncio.sleep(0.05)
         second = (await scheduler.submit(spec("B", "4b"))).job_id
         await wait_for_all(scheduler, [second])
         assert present(scheduler.get(second)).state is JobState.SUCCEEDED

@@ -37,6 +37,17 @@ Use it with `llm-broker embed --model embed --project P --task T --file lines.tx
 
 `llm-broker calibrate --mode embeddings` measures the input window, batch size and concurrency through the running broker and reports a usable concurrency; set `parallel_ceiling` from it. See [the example measurements](./measurements-rtx3080ti-12gb/embedding-nomic-embed-text-v1.5-f16.md).
 
+## Calling the broker from a Docker container
+
+The broker accepts only loopback `Host` headers (`127.0.0.1`, `localhost`, `::1`), which blocks DNS-rebinding attacks from web pages. A container on Docker Desktop reaches the host as `host.docker.internal`, so the broker answers `400 loopback_only`. Allow that name explicitly in `config.toml` and restart the broker:
+
+```toml
+[broker]
+allowed_hosts = ["host.docker.internal"]
+```
+
+Only plain host names are accepted (no scheme, port or wildcard). The bearer token is still required on every route except `/health`, so mount or pass the contents of `auth.token` to the container as a secret and send it as `Authorization: Bearer ...`. The broker still listens on `127.0.0.1` only; Docker Desktop forwards `host.docker.internal` to the host's loopback. If your Docker setup reaches the host through another interface, the broker will not be reachable and this setting will not help. Do not add names you do not control.
+
 ## Watching requests
 
 Every request carries a client, project and task name. `llm-broker submit` and `embed` require `--project` and `--task` (and take `--client`); the native `/jobs` API requires `client_id`, `project` and `task_label`; the OpenAI-style endpoints read the headers `X-Client-Id`, `X-Project` and `X-Task` and fall back to `openai`, `openai` and `chat-completions` (or `embeddings`). They are short, generic labels, never prompt text.

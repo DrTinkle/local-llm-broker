@@ -97,6 +97,8 @@ class BrokerConfig:
     auth_token_path: Path | None = None
     # Full path to LM Studio's `lms` tool, for machines where it is not on PATH.
     lms_path: str | None = None
+    # Extra Host header names accepted besides loopback, for example "host.docker.internal". The token is still required.
+    allowed_hosts: tuple[str, ...] = ()
     # Keyed by LM Studio model ID, then tier name. Profiles that share a model share its tiers.
     tiers: Mapping[str, Mapping[str, TierConfig]] = field(default_factory=dict)
 

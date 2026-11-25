@@ -17,6 +17,10 @@ result_ttl_seconds = 600
 metadata_ttl_days = 30
 # Unload the loaded model after this many seconds with no running or queued jobs (0 = never).
 idle_unload_seconds = 600
+# Extra host names that may appear in the Host header, besides localhost. Needed when a Docker container calls the
+# broker as host.docker.internal. The bearer token is still required. The broker still listens on 127.0.0.1 only.
+# allowed_hosts = ["host.docker.internal"]
+
 # Full path to LM Studio's `lms` tool. Only needed when it is not on PATH and not in ~/.lmstudio/bin.
 # lms_path = "C:/Users/<user>/.lmstudio/bin/lms.exe"
 

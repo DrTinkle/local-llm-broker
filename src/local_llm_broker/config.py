@@ -73,6 +73,23 @@ def _default_data_dir() -> Path:
     return Path(root) / "LocalLLMBroker"
 
 
+_HOST_NAME = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")
+
+
+def _parse_allowed_hosts(value: object) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError("allowed_hosts must be a list of host names")
+    names: list[str] = []
+    for item in value:
+        name = item.strip().lower() if isinstance(item, str) else ""
+        if not _HOST_NAME.match(name):
+            raise ValueError("allowed_hosts entries must be plain host names, such as host.docker.internal (no scheme, port or wildcard)")
+        names.append(name)
+    return tuple(names)
+
+
 def _loopback(url: str, label: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
@@ -164,6 +181,7 @@ def load_config(path: Path) -> BrokerConfig:
     backend_url = str(broker.get("backend_url", "http://127.0.0.1:1234"))
     _loopback(backend_url, "backend_url")
     data_dir = Path(str(broker.get("data_dir", _default_data_dir())))
+    allowed_hosts = _parse_allowed_hosts(broker.get("allowed_hosts"))
     lms_path = broker.get("lms_path")
     if lms_path is not None and (not isinstance(lms_path, str) or not lms_path.strip()):
         raise ValueError("lms_path must be a non-empty string")
@@ -201,6 +219,7 @@ def load_config(path: Path) -> BrokerConfig:
         profiles=profiles,
         auth_token_path=auth_token_path,
         lms_path=lms_path,
+        allowed_hosts=allowed_hosts,
         tiers={model: rows for model, rows in tiers.items() if any(p.model_id == model for p in profiles.values())},
     )
 

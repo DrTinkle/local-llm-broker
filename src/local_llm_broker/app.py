@@ -108,10 +108,12 @@ def create_app(
     # Set by the serving command so that POST /admin/shutdown can ask the server to exit.
     app.state.request_shutdown = None
 
+    accepted_hosts = {"127.0.0.1", "localhost", "::1", *config.allowed_hosts}
+
     @app.middleware("http")
     async def loopback_guard(request: Request, call_next: Any) -> Any:
-        host = request.headers.get("host", "").rsplit(":", 1)[0].strip("[]")
-        if host not in {"127.0.0.1", "localhost", "::1"}:
+        host = request.headers.get("host", "").rsplit(":", 1)[0].strip("[]").lower()
+        if host not in accepted_hosts:
             return JSONResponse(status_code=400, content={"error": {"code": "loopback_only", "message": "loopback host required"}})
         origin = request.headers.get("origin")
         if origin:

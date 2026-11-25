@@ -38,6 +38,8 @@ class ProfileConfig:
     supports_vision: bool = False
     thinks: bool = False
     description: str = ""
+    # "chat" profiles run jobs through the queue; "embedding" profiles stay loaded beside the chat model.
+    kind: str = "chat"
 
 
 # Load tiers, from fastest to largest context. A job names one, or the broker picks the smallest that fits.

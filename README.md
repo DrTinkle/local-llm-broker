@@ -15,6 +15,8 @@ A single GPU can hold one large model at a time, and LM Studio will happily let 
 - **Guided setup and calibration.** `llm-broker setup` finds the chat models LM Studio has downloaded, lets you choose which get profiles, and can measure your hardware (how much context fits, how many parallel slots, which memory settings are fastest) so the limits fit your machine instead of guesses.
 - **Safe operation.** Jobs can be cancelled, a crash or restart marks unfinished work as interrupted (never replayed), and a lock keeps a second broker from starting. `verify` runs one tiny job per profile to prove everything answers.
 - **Two ways in.** A CLI (`submit`, `result`, `status`, `logs` and more) for shell-capable agents, and a bounded OpenAI-compatible endpoint (`/v1`) for any client that lets you set a base URL. Image input works on vision models.
+- **Embeddings.** A profile with `kind = "embedding"` serves text embeddings at `/v1/embeddings` and through `llm-broker embed`. The small embedding model stays loaded beside the chat model, so embedding never costs a model switch.
+- **See who asks for what.** Every request carries a client, project and task name (required). `llm-broker watch` shows them live in a terminal: which project sent what to which model, and how long it took.
 - **An agent skill.** `use-local-models` teaches agents when delegating is worth it (large raw inputs they do not need to read themselves), how to submit files, and how to check the answer.
 - **Private by design.** It binds to `127.0.0.1` only and requires a locally generated bearer token. Prompts and results stay in memory; only operational metadata (job states, timings, token counts) goes to SQLite and JSONL files. It does not depend on any other project.
 
@@ -117,7 +119,9 @@ This shuts the broker down cleanly. If jobs are queued or running it refuses and
 | Command | Purpose |
 | --- | --- |
 | `profiles` | List the configured profiles, their models and load tiers |
-| `submit` | Send a job (`--files` accepts files, folders and quoted globs) |
+| `submit` | Send a job (`--project` and `--task` are required; `--files` accepts files, folders and quoted globs) |
+| `embed` | Turn text into embedding vectors with an embedding profile |
+| `watch` | Live view of requests: client / project / task, profile, result and time |
 | `result`, `wait`, `cancel` | Collect, wait for, or cancel a job |
 | `status`, `doctor`, `logs`, `summary` | Inspect the broker |
 | `verify` | Run one tiny job per profile |

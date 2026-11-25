@@ -111,6 +111,8 @@ async def _submit(app: Any) -> str:
             headers={"Authorization": f"Bearer {app.state.auth_token}"},
             json={
                 "client_id": "client",
+                "project": "project",
+                "task_label": "task",
                 "profile": "4b",
                 "messages": [{"role": "user", "content": "hello"}],
                 "generation": {"max_tokens": 8},

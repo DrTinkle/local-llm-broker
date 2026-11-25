@@ -30,6 +30,14 @@ idle_unload_seconds = 600
 # parallel_ceiling = 1
 # description = "One line on when to use this model."
 
+# An embedding model (add it by hand; setup lists chat models only) stays loaded beside the chat model. It takes
+# context_ceiling (the model's own window) and parallel_ceiling (most requests at once), and no tiers.
+# [profiles.embed]
+# kind = "embedding"
+# model_id = "text-embedding-nomic-embed-text-v1.5@f16"
+# context_ceiling = 2048
+# parallel_ceiling = 4
+
 # Load tiers, keyed by model ID. A job sets tier = "low" | "medium" | "high"; without one, the broker picks the
 # smallest tier the job fits. Settings: context_length, kv_cache (f16 | q8_0 | q4_0), flash_attention,
 # eval_batch_size, cpu_expert_ratio (MoE only), try_mmap.

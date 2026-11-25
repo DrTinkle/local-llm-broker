@@ -74,11 +74,11 @@ def test_format_profiles_lists_every_profile() -> None:
     text = format_profiles(_models())
     lines = text.splitlines()
     header = lines[0].split()
-    assert header == ["profile", "model", "thinks", "vision", "slots", "low", "medium", "high"]
+    assert header == ["profile", "kind", "model", "thinks", "vision", "slots", "low", "medium", "high"]
     big = next(line for line in lines if line.startswith("big"))
     small = next(line for line in lines if line.startswith("small"))
-    assert big.split() == ["big", "vendor/big-model", "yes", "yes", "2", "32,768", "65,536", "163,840"]
-    assert small.split() == ["small", "vendor/small-model", "no", "no", "1", "8,192", "-", "-"]
+    assert big.split() == ["big", "chat", "vendor/big-model", "yes", "yes", "2", "32,768", "65,536", "163,840"]
+    assert small.split() == ["small", "chat", "vendor/small-model", "no", "no", "1", "8,192", "-", "-"]
     assert "Hard tasks." in text
     assert sum(1 for line in lines if line.startswith(("big", "small"))) == 2
 

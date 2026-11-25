@@ -30,6 +30,7 @@ Global options go before the subcommand:
 | `status` | See the queue and the loaded model | JSON object |
 | `doctor` | `status` plus the model list | Two JSON objects |
 | `profiles` | List this broker's profiles: profile, model, thinks, vision, slots, low/medium/high context, and a description line each. Run it before choosing `--model`. `--json` prints the raw list | A table, or JSON with `--json` |
+| `embed` | Turn text into vectors with an embedding profile: `--model P --project X --task Y` plus `--text A B ...` and/or `--file F` (one text per non-empty line); `--out F` writes JSON `{model, dimensions, embeddings}`, otherwise it prints it. `--client` names your tool | A one-line summary with `--out`, else the JSON |
 | `models` | The same profile data as raw JSON, including each profile's tiers | JSON |
 | `submit` | Send a job | Job ID line, then the answer (see below) |
 | `wait JOB` | Block until the job ends | JSON job snapshot (`state` is `succeeded`, `failed`, `cancelled`, or `interrupted`) |
@@ -37,6 +38,7 @@ Global options go before the subcommand:
 | `cancel JOB` | Cancel a queued or running job | JSON job snapshot |
 | `verify` | Run one tiny job per profile to prove each works (`--profiles` limits it). It loads models, so leave it to the owner | A pass or fail row per profile |
 | `logs`, `summary` | Operator metadata | JSON; sessions do not need these |
+| `watch` | Owner only: a live view of requests as they happen, each with client / project / task, the profile, and the time taken (`--last N` shows recent ones first, `--no-follow` prints and exits). Reads the broker's event log, so it works without a token | One line per event |
 | `setup` | Owner only: check LM Studio, choose models and write `config.toml`. Not for agents mid-task | Prompts and a summary |
 | `stop` | Owner only: shut the broker down cleanly (`--force` even with jobs queued or running). Agents must not stop the broker | A short message |
 | `install-skill` | Owner only: copy this skill into an agent's skills folder (`--target DIR`, `--force` to replace). Not for agents mid-task | A short message |
@@ -61,8 +63,8 @@ submit --model PROFILE                 required; a name from `profiles`
        [--split]                       split input that does not fit one job into up to 10 sequential jobs
        [--split-budget-tokens N]       override the per-job prompt budget used by --split
        [--client NAME]                 default "cli"; name your tool, e.g. my-agent
-       [--project NAME]                short generic label
-       [--task LABEL]                  short generic label
+       --project NAME                  required: short generic label, shown by `watch`
+       --task LABEL                    required: short generic label, shown by `watch`
        [--max-output-tokens N]         default 2048; 1 up to the profile's context ceiling
        [--out PATH]                    write the answer to a file (atomic replace)
        [--detach]                      print the job ID and return at once

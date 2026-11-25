@@ -96,8 +96,9 @@ def _finite_float(value: object, name: str, minimum: float, maximum: float) -> f
 ALIAS_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
 REASONING_EFFORTS = ("none", "low", "medium", "high")
 _PROFILE_KEYS = {
-    "model_id", "context_ceiling", "parallel_ceiling", "variant", "reasoning_effort", "supports_vision", "thinks", "description",
+    "model_id", "context_ceiling", "parallel_ceiling", "variant", "reasoning_effort", "supports_vision", "thinks", "description", "kind",
 }
+PROFILE_KINDS = ("chat", "embedding")
 
 
 def _parse_profile(alias: str, value: object, tiers: dict[str, dict[str, TierConfig]]) -> ProfileConfig:
@@ -111,6 +112,15 @@ def _parse_profile(alias: str, value: object, tiers: dict[str, dict[str, TierCon
     model_id = value.get("model_id")
     if not isinstance(model_id, str) or not model_id:
         raise ValueError(f"profiles.{alias}.model_id is required")
+    kind = value.get("kind", "chat")
+    if kind not in PROFILE_KINDS:
+        raise ValueError(f"profiles.{alias}.kind must be one of {', '.join(PROFILE_KINDS)}")
+    if kind == "embedding":
+        chat_only = [key for key in ("thinks", "supports_vision", "reasoning_effort", "variant") if key in value]
+        if chat_only:
+            raise ValueError(f"profiles.{alias}: an embedding profile cannot set {', '.join(chat_only)}")
+        if tiers.get(model_id):
+            raise ValueError(f"profiles.{alias}: an embedding model has no [tiers]; set context_ceiling on the profile")
     if "context_ceiling" in value and tiers.get(model_id):
         raise ValueError(f"[profiles.{alias}] context_ceiling is replaced by the model's [tiers] context_length values; remove it")
     variant = value.get("variant")
@@ -136,6 +146,7 @@ def _parse_profile(alias: str, value: object, tiers: dict[str, dict[str, TierCon
         supports_vision=vision,
         thinks=thinks,
         description=description,
+        kind=str(kind),
     )
 
 

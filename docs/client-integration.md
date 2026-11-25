@@ -8,5 +8,9 @@ Supported compatibility fields include text and image `messages` (images only on
 
 To watch the broker (a dashboard, a status pill), subscribe to `GET /status/stream`, a server-sent event stream with a `status_snapshot` on connect and on each change and a `: keep-alive` comment every 30 seconds, instead of polling `/status`. One server-side subscription can feed any number of browser tabs. See "Watching status without polling" in [operations](./operations.md).
 
-Native job submissions include `client_id`, `project`, `task_label`, `profile`, `messages`, `generation`, an optional queue deadline, and an optional `tier`. Metadata is short and generic; do not put prompt or file contents in those labels. Idempotency keys are scoped to client ID for 24 hours.
+Embeddings: `POST /v1/embeddings` (OpenAI format: `model` is an embedding profile, `input` a string or a list of up to 256 strings, `encoding_format` `float`; `dimensions` and base64 are not supported). Input past the model's window is cut off, not rejected. Embedding profiles run beside the chat model without queueing, and chat requests to an embedding profile (or the reverse) are rejected with `wrong_profile_kind`.
+
+Every request is labelled with a client, project and task, which `llm-broker watch` shows live. On the OpenAI-style endpoints (`/v1/chat/completions`, `/v1/embeddings`) send the headers `X-Client-Id`, `X-Project` and `X-Task`; without them the labels default to `openai`, `openai` and `chat-completions` or `embeddings`.
+
+Native job submissions require `client_id`, `project` and `task_label` (a missing or empty one is rejected), and include `profile`, `messages`, `generation`, an optional queue deadline, and an optional `tier`. Metadata is short and generic; do not put prompt or file contents in those labels. Idempotency keys are scoped to client ID for 24 hours.
 

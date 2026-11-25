@@ -228,14 +228,16 @@ async def test_scheduler_emits_operational_events_without_payloads(tmp_path: Pat
     )
     await scheduler.start()
     try:
-        submitted = await scheduler.submit(spec("telemetry", "4b"))
+        private = JobSpec("client-a", "project", "task-name", "4b", [{"role": "user", "content": "private prompt text"}], {"max_tokens": 8})
+        submitted = await scheduler.submit(private)
         await wait_for_all(scheduler, [submitted.job_id])
     finally:
         await scheduler.shutdown()
     text = (tmp_path / "events.jsonl").read_text(encoding="utf-8")
     assert '"event": "inference_started"' in text
     assert '"event": "inference_finished"' in text
-    assert "telemetry" not in text
+    assert "private prompt text" not in text
+    assert '"task_label": "task-name"' in text  # labels are shown on purpose; prompts never are
 
 
 

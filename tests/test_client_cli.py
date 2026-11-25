@@ -89,7 +89,7 @@ def test_client_error_does_not_include_response_body_in_exception() -> None:
 
 
 def test_cli_invalid_submit_input_returns_documented_exit_code() -> None:
-    assert main(["submit", "--model", "4b"]) == EXIT_INVALID_INPUT
+    assert main(["submit", "--model", "4b", "--project", "p", "--task", "t"]) == EXIT_INVALID_INPUT
 
 
 def test_cli_output_survives_characters_a_cp1252_console_cannot_encode(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -119,7 +119,7 @@ class _FinishedJobClient:
 def _submit_and_finish(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, snapshot: dict[str, object]) -> int:
     config = load_config(PRESET)
     monkeypatch.setattr(cli, "_client", lambda config_path, base_url: (_FinishedJobClient(snapshot), config))
-    code: int = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi"])
+    code: int = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--project", "p", "--task", "t"])
     return code
 
 
@@ -224,7 +224,7 @@ def test_main_rejects_out_path_that_is_a_directory(tmp_path: Path, monkeypatch: 
     out_dir.mkdir()
     config = load_config(PRESET)
     monkeypatch.setattr(cli, "_client", lambda config_path, base_url: (SubmitForbiddenClient(), config))
-    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--out", str(out_dir)])
+    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--project", "p", "--task", "t", "--out", str(out_dir)])
     assert code == EXIT_INVALID_INPUT
     assert "input_is_directory (retryable: no)" in capsys.readouterr().err
 
@@ -281,7 +281,7 @@ def test_submit_expands_folder_into_sorted_labelled_files(tmp_path: Path, monkey
     config = load_config(PRESET)
     monkeypatch.setattr(cli, "_client", lambda config_path, base_url: (client, config))
 
-    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--files", "docs"])
+    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--project", "p", "--task", "t", "--files", "docs"])
 
     assert code == EXIT_OK
     content = client.payloads[0]["messages"][-1]["content"]  # type: ignore[index]
@@ -296,7 +296,7 @@ def test_submit_missing_files_path_reports_input_not_found(tmp_path: Path, monke
     config = load_config(PRESET)
     monkeypatch.setattr(cli, "_client", lambda config_path, base_url: (_RecordingClient(), config))
 
-    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--files", "missing_dir"])
+    code = main(["--config", str(PRESET), "submit", "--model", "4b", "--prompt", "hi", "--project", "p", "--task", "t", "--files", "missing_dir"])
 
     assert code == EXIT_INVALID_INPUT
     assert "input_not_found (retryable: no)" in capsys.readouterr().err
@@ -305,7 +305,7 @@ def test_submit_missing_files_path_reports_input_not_found(tmp_path: Path, monke
 def test_submit_parser_accepts_expansion_flags() -> None:
     args = cli._parser().parse_args(
         [
-            "submit", "--model", "4b", "--prompt", "hi",
+            "submit", "--model", "4b", "--prompt", "hi", "--project", "p", "--task", "t",
             "--files", "src", "--include", "*.py", "--exclude", "tests",
             "--no-recursive", "--no-default-excludes", "--max-files", "5",
         ]
@@ -362,7 +362,7 @@ def _run_split(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, client: _BatchCl
     monkeypatch.setattr(cli, "_client", lambda config_path, base_url: (client, config))
     code: int = main(
         [
-            "--config", str(PRESET), "submit", "--model", "4b", "--prompt", "summarize",
+            "--config", str(PRESET), "submit", "--model", "4b", "--prompt", "summarize", "--project", "p", "--task", "t",
             "--files", "a.txt", "b.txt", "c.txt", "--split", *extra,
         ]
     )

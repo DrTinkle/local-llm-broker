@@ -19,6 +19,34 @@ After setup, edit `config.toml` only for loopback addresses, model IDs and load 
 
 Then start the broker (`scripts\start-broker.ps1`), run `llm-broker verify` to prove every profile answers, and install the skill for your agents with `llm-broker install-skill --target <skills-folder>`.
 
+## Embedding profiles
+
+An embedding model is added by hand; `setup` only discovers chat models. Download it in LM Studio, then add a profile with `kind = "embedding"`:
+
+```toml
+[profiles.embed]
+kind = "embedding"
+model_id = "text-embedding-nomic-embed-text-v1.5@f16"   # the key `lms ls` shows
+context_ceiling = 2048                                  # the model's own window
+parallel_ceiling = 4                                    # most requests handled at once
+```
+
+An embedding profile cannot set `thinks`, `supports_vision`, `reasoning_effort` or `variant`, and has no `[tiers]`. Embedding models are small, so the broker loads one on first use and keeps it loaded beside the chat model. It is exempt from the one-model rule: chat loads, switches and the idle unload leave it alone. Requests do not queue behind chat jobs; they run straight away, at most `parallel_ceiling` at a time per profile. Their text is never stored or logged, only the count and time.
+
+Use it with `llm-broker embed --model embed --project P --task T --file lines.txt --out vectors.json`, or `POST /v1/embeddings` with the bearer token (OpenAI format, `input` as a string or a list of up to 256 strings, `encoding_format` `float` only). Text beyond the model's window is cut off silently, not refused, so split long documents first. `llm-broker verify` checks an embedding profile with one short text.
+
+`llm-broker calibrate --mode embeddings` measures the input window, batch size and concurrency through the running broker and reports a usable concurrency; set `parallel_ceiling` from it. See [the example measurements](./measurements-rtx3080ti-12gb/embedding-nomic-embed-text-v1.5-f16.md).
+
+## Watching requests
+
+Every request carries a client, project and task name. `llm-broker submit` and `embed` require `--project` and `--task` (and take `--client`); the native `/jobs` API requires `client_id`, `project` and `task_label`; the OpenAI-style endpoints read the headers `X-Client-Id`, `X-Project` and `X-Task` and fall back to `openai`, `openai` and `chat-completions` (or `embeddings`). They are short, generic labels, never prompt text.
+
+```powershell
+llm-broker watch
+```
+
+prints one line per step as it happens, for example `14:02:11  done      my-agent / billing-api / triage-log  ->  4b-nothink  6.43s  1200 in / 85 out`. `--last N` sets how many recent lines to show first and `--no-follow` prints them and exits. It reads `logs/events.jsonl` in the data folder directly, so it needs no token and works even while the broker is stopped. The log holds names, profiles, states and timings, never prompts or answers.
+
 ## Run and inspect
 
 ```powershell
@@ -27,6 +55,7 @@ llm-broker stop
 llm-broker doctor
 llm-broker models
 llm-broker status
+llm-broker watch
 llm-broker logs
 llm-broker summary
 ```

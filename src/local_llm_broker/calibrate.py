@@ -33,7 +33,8 @@ def default_profiles(config: BrokerConfig) -> list[str]:
     """
     by_model: dict[str, list[str]] = {}
     for alias, profile in config.profiles.items():
-        by_model.setdefault(profile.model_id, []).append(alias)
+        if profile.kind == "chat":
+            by_model.setdefault(profile.model_id, []).append(alias)
     quick = [
         next((alias for alias in aliases if not config.profiles[alias].thinks), None) for aliases in by_model.values()
     ]
@@ -47,7 +48,7 @@ def vision_profiles(config: BrokerConfig) -> list[str]:
     """One profile per distinct model among those that accept images, preferring one that does not think."""
     by_model: dict[str, list[str]] = {}
     for alias, profile in config.profiles.items():
-        if profile.supports_vision:
+        if profile.supports_vision and profile.kind == "chat":
             by_model.setdefault(profile.model_id, []).append(alias)
     return [
         next((alias for alias in aliases if not config.profiles[alias].thinks), aliases[0]) for aliases in by_model.values()
@@ -57,7 +58,7 @@ def vision_profiles(config: BrokerConfig) -> list[str]:
 def resolve_models(config: BrokerConfig, names: Iterable[str] | None) -> list[str]:
     """Model IDs for direct calibration. Each name is a profile alias or a model ID; none means every configured model."""
     if names is None:
-        names = [profile.model_id for profile in config.profiles.values()]
+        names = [profile.model_id for profile in config.profiles.values() if profile.kind == "chat"]
     resolved: list[str] = []
     for name in names:
         profile = config.profiles.get(name)

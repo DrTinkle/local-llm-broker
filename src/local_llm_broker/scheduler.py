@@ -963,6 +963,8 @@ class Scheduler:
     def _validate_spec(self, spec: JobSpec) -> None:
         if spec.profile not in self.config.profiles:
             raise SchedulerError("unknown_profile", f"unknown profile: {spec.profile}")
+        if self.config.profiles[spec.profile].kind != "chat":
+            raise SchedulerError("wrong_profile_kind", f"profile '{spec.profile}' is an embedding profile; use /v1/embeddings")
         if not spec.client_id or len(spec.client_id) > 128:
             raise SchedulerError("invalid_client_id", "client_id must be non-empty and short")
         if not spec.messages:
@@ -1067,8 +1069,12 @@ class Scheduler:
                 "event": event,
                 "job_id": snapshot.job_id,
                 "client_id": snapshot.client_id,
+                "project": snapshot.project,
+                "task_label": snapshot.task_label,
                 "profile": snapshot.profile,
                 "state": snapshot.state.value,
+                **{name: value for name in ("queue_seconds", "load_seconds", "inference_seconds", "input_tokens", "output_tokens")
+                   if (value := getattr(snapshot, name)) is not None},
                 **fields,
             }
         )

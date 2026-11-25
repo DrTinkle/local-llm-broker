@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import shutil
@@ -40,6 +41,8 @@ VERIFY_PLAIN_TOKENS = 64
 STOP_WAIT_SECONDS = 20
 STOP_POLL_SECONDS = 0.5
 STOP_PROBE_TIMEOUT = 2.0
+WATCH_POLL_SECONDS = 0.5
+CALIBRATION_LABELS = {"X-Client-Id": "calibrate", "X-Project": "calibrate", "X-Task": "calibrate"}
 NO_PROFILES_HINT = "No profiles are configured. Run `llm-broker setup` first."
 
 
@@ -112,12 +115,23 @@ def _parser() -> argparse.ArgumentParser:
     stop = sub.add_parser("stop", help="ask the running broker to shut down")
     stop.add_argument("--force", action="store_true", help="stop even while jobs are queued or running")
     stop.add_argument("--wait-seconds", type=int, default=STOP_WAIT_SECONDS, help="how long to wait for the broker to go away (default 20)")
+    embed = sub.add_parser("embed", help="turn text into embedding vectors with an embedding profile")
+    embed.add_argument("--model", required=True, help="an embedding profile (see `profiles`)")
+    embed.add_argument("--client", default="cli", help="who is calling, for example the agent or tool name")
+    embed.add_argument("--project", required=True, help="short, generic project name; shown in `watch` and the logs")
+    embed.add_argument("--task", required=True, help="short, generic task name; shown in `watch` and the logs")
+    embed.add_argument("--text", nargs="*", default=[], help="one or more texts to embed")
+    embed.add_argument("--file", type=Path, default=None, help="embed each non-empty line of this file")
+    embed.add_argument("--out", type=Path, default=None, help="write the vectors to this JSON file instead of printing them")
+    watch = sub.add_parser("watch", help="show live requests: who asked (client / project / task), which profile, how it went")
+    watch.add_argument("--last", type=int, default=15, help="how many recent events to show first (default 15)")
+    watch.add_argument("--no-follow", action="store_true", help="print the recent events and exit")
     sub.add_parser("models")
     sub.add_parser("status")
     submit = sub.add_parser("submit")
-    submit.add_argument("--client", default="cli")
-    submit.add_argument("--project", default="")
-    submit.add_argument("--task", default="")
+    submit.add_argument("--client", default="cli", help="who is calling, for example the agent or tool name")
+    submit.add_argument("--project", required=True, help="short, generic project name; shown in `watch` and the logs")
+    submit.add_argument("--task", required=True, help="short, generic task name; shown in `watch` and the logs")
     submit.add_argument("--model", required=True)
     submit.add_argument("--prompt")
     submit.add_argument("--prompt-file", type=Path)
@@ -151,9 +165,9 @@ def _parser() -> argparse.ArgumentParser:
     calibrate.add_argument("--no-capacity", action="store_true", help="with --concurrency: skip the shared-context overfill test")
     calibrate.add_argument(
         "--mode",
-        choices=["speed", "concurrency", "tokens", "depth", "search", "slots", "experts"],
+        choices=["speed", "concurrency", "tokens", "depth", "embeddings", "search", "slots", "experts"],
         default="speed",
-        help="speed (default), concurrency, tokens and depth run through the broker; "
+        help="speed (default), concurrency, tokens, depth and embeddings run through the broker; "
         "search, slots and experts load LM Studio directly and need the broker stopped",
     )
     calibrate.add_argument(
@@ -179,8 +193,10 @@ def _calibrate(client: BrokerClient, config: BrokerConfig, args: argparse.Namesp
     models = client.models()
     served = {item.get("id") for item in models.get("data", [])}
     profiles = args.profiles or [name for name in default_profiles(config) if name in served]
+    if args.mode == "embeddings":
+        return _calibrate_embeddings(client, config, args)
     print("Calibrating; each tier loads its model once. This can take several minutes.", file=sys.stderr)
-    headers = {"Authorization": f"Bearer {client.token}"}
+    headers = {"Authorization": f"Bearer {client.token}", **CALIBRATION_LABELS}
     if args.mode == "tokens":
         from .calibrate_broker_modes import format_tokens, run_tokens
 
@@ -214,6 +230,36 @@ def _calibrate(client: BrokerClient, config: BrokerConfig, args: argparse.Namesp
     else:
         print(format_table(results))
     return EXIT_OK if all(item.error is None for item in results) else EXIT_UNAVAILABLE
+
+
+def _calibrate_embeddings(client: BrokerClient, config: BrokerConfig, args: argparse.Namespace) -> int:
+    from .calibrate_embeddings import format_report, to_json
+
+    served = {item["id"] for item in client.models().get("data", []) if item.get("kind") == "embedding"}
+    names = args.profiles or sorted(served)
+    unknown = [name for name in names if name not in served]
+    if unknown or not names:
+        print("No embedding profile to calibrate: " + (", ".join(unknown) if unknown else "none are configured"), file=sys.stderr)
+        return EXIT_INVALID_INPUT
+    reports = []
+    for name in names:
+        limit = config.profiles[name].parallel_ceiling if name in config.profiles else 16
+        reports.append(asyncio.run(_run_embedding_calibration(client, name, limit)))
+    if args.json:
+        _print_json([to_json(report) for report in reports])
+    else:
+        print("\n\n".join(format_report(report) for report in reports))
+    return EXIT_OK if all(report.error is None for report in reports) else EXIT_UNAVAILABLE
+
+
+async def _run_embedding_calibration(client: BrokerClient, name: str, limit: int) -> Any:
+    from .calibrate_embeddings import run_embeddings
+
+    async with httpx.AsyncClient(
+        base_url=client.base_url, headers={"Authorization": f"Bearer {client.token}", **CALIBRATION_LABELS},
+        timeout=httpx.Timeout(30.0, read=600.0),
+    ) as http:
+        return await run_embeddings(http, name, max_concurrency=limit)
 
 
 def _calibrate_direct(config: BrokerConfig, args: argparse.Namespace) -> int:
@@ -303,6 +349,11 @@ def main(argv: list[str] | None = None) -> int:
         return run_setup(args)
     if args.command == "install-skill":
         return _install_skill(args.target, args.force)
+    if args.command in {"submit", "embed"}:
+        for flag, value in (("--client", args.client), ("--project", args.project), ("--task", args.task)):
+            if not value.strip():
+                print(f"{flag} must not be blank", file=sys.stderr)
+                return EXIT_INVALID_INPUT
     try:
         config = load_config(args.config)
         if args.command == "serve":
@@ -320,6 +371,8 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_OK
         if args.command == "stop":
             return _stop(args, config)
+        if args.command == "watch":
+            return _watch(config, args)
         if args.command == "calibrate" and args.mode in {"search", "slots", "experts"}:
             return _calibrate_direct(config, args)
         if args.command == "submit" and not args.prompt and not args.prompt_file:
@@ -336,6 +389,8 @@ def main(argv: list[str] | None = None) -> int:
                 return _profiles(client, args.json)
             elif args.command == "verify":
                 return _verify(client, args)
+            elif args.command == "embed":
+                return _embed(client, args)
             elif args.command == "status":
                 _print_json(client.status())
             elif args.command == "submit":
@@ -366,6 +421,51 @@ def main(argv: list[str] | None = None) -> int:
         retryable = "yes" if exc.retryable else "no"
         print(f"{exc.code} (retryable: {retryable}): {exc}", file=sys.stderr)
         return _exit_for_error(exc.code, exc.status_code)
+
+
+def _watch(config: BrokerConfig, args: argparse.Namespace) -> int:
+    from .watch import describe_event, read_new_events, recent_events
+
+    path = Path(config.data_dir) / "logs" / "events.jsonl"
+    events, offset = recent_events(path, max(0, args.last))
+    shown = [line for line in map(describe_event, events) if line]
+    for line in shown:
+        print(line, flush=True)
+    if not shown:
+        print("No activity yet." if args.no_follow else "No activity yet; waiting for requests (Ctrl+C to stop).", flush=True)
+    if args.no_follow:
+        return EXIT_OK
+    try:
+        while True:
+            time.sleep(WATCH_POLL_SECONDS)
+            events, offset = read_new_events(path, offset)
+            for event in events:
+                text = describe_event(event)
+                if text:
+                    print(text, flush=True)
+    except KeyboardInterrupt:
+        return EXIT_OK
+
+
+def _embed(client: BrokerClient, args: argparse.Namespace) -> int:
+    inputs = list(args.text)
+    if args.file is not None:
+        text = read_text_file(args.file, label=args.file.name)
+        inputs.extend(line.strip() for line in text.splitlines() if line.strip())
+    if not inputs:
+        print("embed requires --text or --file with at least one non-empty line", file=sys.stderr)
+        return EXIT_INVALID_INPUT
+    if args.out is not None and args.out.is_dir():
+        raise InputError("input_is_directory", f"--out path is an existing directory: {args.out.name}")
+    response = client.embed(args.model, inputs, client_id=args.client, project=args.project, task=args.task)
+    vectors = [row["embedding"] for row in sorted(response.get("data", []), key=lambda row: row.get("index", 0))]
+    result = {"model": args.model, "dimensions": len(vectors[0]) if vectors else 0, "embeddings": vectors}
+    if args.out is None:
+        _print_json(result)
+    else:
+        write_atomic(args.out, json.dumps(result))
+        print(f"{len(vectors)} embeddings of {result['dimensions']} dimensions written to {args.out}")
+    return EXIT_OK
 
 
 def _submit(client: BrokerClient, config: BrokerConfig, args: argparse.Namespace) -> int:
@@ -505,20 +605,28 @@ def _tokens(value: int) -> str:
     return f"{value:,}"
 
 
+def _context_cells(entry: dict[str, Any], tiers: dict[str, Any]) -> list[str]:
+    # An embedding profile has one fixed context, shown under "low"; it has no tiers.
+    if entry.get("kind") == "embedding":
+        return [_tokens(int(entry["context"])) if entry.get("context") else "-", "-", "-"]
+    return [_tokens(tiers[name]["context_length"]) if name in tiers else "-" for name in ("low", "medium", "high")]
+
+
 def format_profiles(models: dict[str, Any]) -> str:
     entries = models.get("data", [])
-    header = ["profile", "model", "thinks", "vision", "slots", "low", "medium", "high"]
+    header = ["profile", "kind", "model", "thinks", "vision", "slots", "low", "medium", "high"]
     rows: list[list[str]] = []
     for entry in entries:
         tiers = entry.get("tiers", {})
         rows.append(
             [
                 str(entry.get("id", "")),
+                str(entry.get("kind", "chat")),
                 str(entry.get("model_id", "")),
                 "yes" if entry.get("thinks") else "no",
                 "yes" if entry.get("vision") else "no",
                 str(entry.get("parallel", 1)),
-                *[_tokens(tiers[name]["context_length"]) if name in tiers else "-" for name in ("low", "medium", "high")],
+                *_context_cells(entry, tiers),
             ]
         )
     widths = [max(len(line[column]) for line in [header, *rows]) for column in range(len(header))]
@@ -551,10 +659,13 @@ def run_verify(client: BrokerClient, profile_entries: list[dict[str, Any]], max_
     passed = True
     for entry in profile_entries:
         alias = str(entry["id"])
+        if entry.get("kind") == "embedding":
+            passed = _verify_embedding(client, alias) and passed
+            continue
         budget = max_output_tokens_override or (VERIFY_THINKING_TOKENS if entry.get("thinks") else VERIFY_PLAIN_TOKENS)
         payload: dict[str, object] = {
             "client_id": "verify",
-            "project": "",
+            "project": "verify",
             "task_label": "verify",
             "profile": alias,
             "messages": [{"role": "user", "content": "Reply with the word OK."}],
@@ -582,6 +693,22 @@ def run_verify(client: BrokerClient, profile_entries: list[dict[str, Any]], max_
             passed = False
             print(f"FAIL {alias}: {failure}", flush=True)
     return EXIT_OK if passed else EXIT_INFERENCE
+
+
+def _verify_embedding(client: BrokerClient, alias: str) -> bool:
+    started = time.monotonic()
+    try:
+        data = client.embed(alias, ["verify"]).get("data") or []
+        failure = None if data and data[0].get("embedding") else "no vector returned"
+    except BrokerClientError as exc:
+        if exc.code == "unavailable":
+            raise
+        failure = f"{exc.code} ({exc})"
+    if failure is None:
+        print(f"PASS {alias} ({time.monotonic() - started:.1f} s)", flush=True)
+        return True
+    print(f"FAIL {alias}: {failure}", flush=True)
+    return False
 
 
 def _verify(client: BrokerClient, args: argparse.Namespace) -> int:

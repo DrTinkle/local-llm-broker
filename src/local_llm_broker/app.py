@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .config import digest_key, ensure_auth_token
 from .contracts import BrokerConfig, JobSpec
+from .embeddings import EmbeddingService, register_embedding_routes
 from .instance_lock import BackendOwnerLock, common_backend_lock_path
 from .lm_studio import LMStudioAdapter
 from .routes_openai import register_openai_routes
@@ -26,8 +27,8 @@ from .telemetry import EventWriter
 class JobRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     client_id: str = Field(min_length=1, max_length=128)
-    project: str = Field(default="", max_length=128)
-    task_label: str = Field(default="", max_length=128)
+    project: str = Field(min_length=1, max_length=128)
+    task_label: str = Field(min_length=1, max_length=128)
     profile: str
     messages: list[dict[str, Any]]
     generation: dict[str, Any] = Field(default_factory=dict)
@@ -50,6 +51,8 @@ def _status_change_key(snapshot: dict[str, Any]) -> str:
     # The idle-unload countdown changes every second; only its starting and stopping count as a change.
     keyed = dict(snapshot)
     keyed["idle_unload_in_seconds"] = snapshot.get("idle_unload_in_seconds") is not None
+    # Request totals grow with every embedding call; only the live counts and limits count as a change.
+    keyed["embedding"] = {k: {"active": v["active"], "limit": v["limit"]} for k, v in snapshot.get("embedding", {}).items()}
     return json.dumps(keyed, sort_keys=True, default=str)
 
 
@@ -76,6 +79,7 @@ def create_app(
         lms_path=config.lms_path,
     )
     scheduler = Scheduler(config, backend, store=store, events=telemetry)
+    embedding = EmbeddingService(config, backend, telemetry)
     token = ensure_auth_token(config)
     owner_lock = BackendOwnerLock(
         Path(config.data_dir) / "broker.lock",
@@ -166,6 +170,7 @@ def create_app(
 
     async def status_snapshot() -> dict[str, Any]:
         result = scheduler.status()
+        result["embedding"] = embedding.status()
         health = getattr(backend, "health", None)
         if health is None:
             result["backend_health"] = {"state": "unknown"}
@@ -226,8 +231,10 @@ def create_app(
                     "owned_by": "local-llm-broker",
                     "model_id": profile.model_id,
                     "parallel": profile.parallel_ceiling,
+                    "context": profile.context_ceiling,
                     "thinks": profile.thinks,
                     "vision": profile.supports_vision,
+                    "kind": profile.kind,
                     "description": profile.description,
                     "tiers": {name: tier.public_dict() for name, tier in config.tiers_for(profile.alias).items()},
                 }
@@ -251,7 +258,10 @@ def create_app(
         spec = JobSpec(**fields)
         snapshot, created = await scheduler.submit_ex(spec, idempotency_key=idempotency_key)
         if created:  # an idempotent replay is not a new acceptance
-            telemetry.emit({"event": "accepted", "job_id": snapshot.job_id, "profile": snapshot.profile, "client_id": snapshot.client_id})
+            telemetry.emit(
+                {"event": "accepted", "job_id": snapshot.job_id, "profile": snapshot.profile, "client_id": snapshot.client_id,
+                 "project": snapshot.project, "task_label": snapshot.task_label}
+            )
         return snapshot.public_dict()
 
     @app.get("/jobs/{job_id}", dependencies=[Depends(require_auth)])
@@ -291,6 +301,7 @@ def create_app(
         return {"status": "stopping"}
 
     register_openai_routes(app, config, scheduler, require_auth)
+    register_embedding_routes(app, embedding, require_auth)
 
     return app
 

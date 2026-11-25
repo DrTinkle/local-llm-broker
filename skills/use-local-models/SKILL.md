@@ -50,6 +50,7 @@ Run `python -m local_llm_broker.cli profiles`. It prints one row per profile: `p
 - Use a thinking profile (`thinks` = yes) only when the task needs reasoning. Its reasoning counts against `--max-output-tokens`, so a small budget can end with `output_truncated`.
 - Prefer the profile with the smallest model that does the job. Move to a larger one only when the smaller one's output is wrong.
 - Image input needs a profile whose `vision` column is `yes`.
+- A profile whose `kind` is `embedding` is not for chat: it turns text into vectors (see "Embeddings" below). Never use it with `submit`.
 - A profile that shares its model with another (a thinking profile and its non-thinking twin) switches without a reload as long as the tier stays the same; any other switch loads a model. Group jobs by profile where you can.
 
 Details and budgets are in [model-selection.md](references/model-selection.md).
@@ -79,7 +80,7 @@ python -m local_llm_broker.cli submit --client my-agent --project my-project --t
 ```
 
 Rules:
-- `--client`, `--project`, and `--task` are short, generic labels. Never put file names, prompt text, or file contents in them.
+- `--project` and `--task` are required, and `--client` should name your tool. All three are short, generic labels (for example `--client my-agent --project billing-api --task triage-log`). The owner watches these live with `watch` to see which project sent which request to which model, so make them meaningful. Never put file names, prompt text, or file contents in them. The broker rejects a submit without a project and task.
 - `--files` accepts files, directories (walked recursively) and quoted globs such as `"src/**/*.py"`. Do NOT list the files yourself first; the CLI expands them. Quote globs, because PowerShell does not expand them. Explicitly named files come first, then expanded files sorted by relative path.
 - Walks and globs skip folders such as `.git`, `node_modules`, `__pycache__`, `dist` and `build`, generated files (`*.min.js`, `*.map`, lockfiles), common binary files, and symlinks. Secret-looking files (`.env`, `*.pem`, `*.key`, `auth.token`) are always skipped, and rejected by name if you list them. Adjust with `--include`, `--exclude`, `--no-recursive`, or `--no-default-excludes` (secret and symlink rules stay on).
 - Each file adds about 15 tokens of framing. `--max-files N` (default 100, up to 500) caps the file count. If the input does not fit one job, add `--split` to run up to 10 sequential jobs; without `--detach` their answers are combined into one `--out` file, written only if every batch succeeds.
@@ -132,6 +133,19 @@ If the same failure keeps coming back, stop using the broker for this task, say 
 ## 7. Check the answer
 
 A local answer is not evidence. Verify numbers, names, dates, links, code, and structured fields against the source yourself. Do not accept a model's statement that it checked its own work. Small non-thinking models make mistakes on fine rules, so spot-check their output.
+
+## Embeddings
+
+A profile with `kind` = `embedding` returns one vector per text. Use it for semantic search, deduplication and clustering over text you hold, not for answering questions. It stays loaded beside the chat model, so it never causes a model switch.
+
+```bash
+python -m local_llm_broker.cli embed --client my-agent --project my-project --task index-docs   --model <embedding-profile> --file ./lines.txt --out ./vectors.json
+```
+
+- `--file` embeds each non-empty line; `--text A B` embeds the texts you pass. `--out` writes `{"model", "dimensions", "embeddings"}` as JSON; without it the same JSON is printed.
+- Vectors are only comparable when they come from the same profile. Do not mix profiles in one index.
+- Input beyond the model's window is silently cut off, not refused. The `profiles` table shows the window (the `low` column). Split long documents into chunks that fit.
+- `--project` and `--task` are required here too. An OpenAI-style client can call `/v1/embeddings` with the same token, and may send `X-Client-Id`, `X-Project` and `X-Task` headers.
 
 ## Limits by design
 

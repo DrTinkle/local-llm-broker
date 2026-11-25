@@ -51,6 +51,11 @@ async def iter_sse_events(chunks: AsyncIterable[bytes], *, max_buffer_bytes: int
         raise ValueError("incomplete SSE frame")
 
 
+def label(value: str, default: str) -> str:
+    """A short, non-blank client, project or task name taken from a request header."""
+    return value.strip()[:128] or default
+
+
 def register_openai_routes(
     app: FastAPI,
     config: BrokerConfig,
@@ -62,6 +67,8 @@ def register_openai_routes(
         request: Request,
         _: None = Depends(auth_dependency),
         client_id: str = Header(default="openai", alias="X-Client-Id"),
+        project: str = Header(default="openai", alias="X-Project"),
+        task: str = Header(default="chat-completions", alias="X-Task"),
     ) -> Any:
         job_id: str | None = None
         try:
@@ -89,9 +96,9 @@ def register_openai_routes(
             if "stream_options" in generation and not isinstance(generation["stream_options"], dict):
                 raise SchedulerError("invalid_request", "stream_options must be an object")
             spec = JobSpec(
-                client_id=client_id,
-                project="openai",
-                task_label="chat-completions",
+                client_id=label(client_id, "openai"),
+                project=label(project, "openai"),
+                task_label=label(task, "chat-completions"),
                 profile=model,
                 messages=messages,
                 generation=generation,
@@ -165,14 +172,20 @@ def _resolve_profile(config: BrokerConfig, model: Any) -> str:
     if not isinstance(model, str):
         raise SchedulerError("invalid_model", "model is required")
     if model in config.profiles:
+        _require_chat(config, model)
         return model
-    matches = [alias for alias, profile in config.profiles.items() if profile.model_id == model]
+    matches = [alias for alias, profile in config.profiles.items() if profile.model_id == model and profile.kind == "chat"]
     if len(matches) > 1:
         # A thinking profile and its -nothink twin share one model ID; the canonical ID means the thinking profile.
         matches = [alias for alias in matches if config.profiles[alias].reasoning_effort is None]
     if len(matches) != 1:
         raise SchedulerError("model_not_found", "model is not a configured broker profile", status_code=404)
     return matches[0]
+
+
+def _require_chat(config: BrokerConfig, alias: str) -> None:
+    if config.profiles[alias].kind != "chat":
+        raise SchedulerError("wrong_profile_kind", f"profile '{alias}' is an embedding profile; use /v1/embeddings")
 
 
 def _validate_messages(messages: list[Any], *, profile: str, supports_vision: bool) -> None:

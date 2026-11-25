@@ -62,6 +62,10 @@ class BrokerClient:
     def models(self) -> dict[str, Any]:
         return self._request("GET", "/v1/models")
 
+    def embed(self, model: str, inputs: list[str], *, client_id: str = "cli", project: str = "cli", task: str = "embed") -> dict[str, Any]:
+        headers = {"X-Client-Id": client_id, "X-Project": project, "X-Task": task}
+        return self._request("POST", "/v1/embeddings", json={"model": model, "input": inputs}, headers=headers)
+
     def logs(self) -> dict[str, Any]:
         return self._request("GET", "/logs")
 

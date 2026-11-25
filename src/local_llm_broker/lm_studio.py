@@ -150,6 +150,10 @@ class LMStudioAdapter:
         self._health_lock = asyncio.Lock()
         # Keyed by model ID. Profiles of a model with tiers load through the SDK; others keep the REST load.
         self.tiers = {model: dict(rows) for model, rows in (tiers or {}).items()}
+        # Embedding models stay loaded beside the chat model. Chat loads and checks leave them alone.
+        self._embedding_models = {p.model_id for p in self.profiles.values() if p.kind == "embedding"}
+        self._resident: dict[str, str] = {}
+        self._resident_lock = asyncio.Lock()
         self._sdk_counter: SdkTokenCounter | None = None
         if token_counter is None:
             self._sdk_counter = SdkTokenCounter(self.base_url)
@@ -196,6 +200,8 @@ class LMStudioAdapter:
         if profile not in self.profiles:
             raise BackendFailure("unknown_profile", f"unknown profile: {profile}")
         profile_config = self.profiles[profile]
+        if profile_config.kind == "embedding":
+            raise BackendFailure("wrong_profile_kind", f"profile '{profile}' is an embedding profile, not a chat profile")
         model_tiers = self.tiers.get(profile_config.model_id, {})
         tier_config: TierConfig | None = None
         if tier is not None:
@@ -215,12 +221,12 @@ class LMStudioAdapter:
             # LM Studio loads the selected variant by model key; a variant-suffixed name is rejected with model_not_found.
             self._require_selected_variant(profile_config, matching)
             # Only one model may be loaded at a time. Everything else goes first, including models loaded by hand.
-            others = [item for item in self._loaded_instances(models) if item["model_id"] != profile_config.model_id]
+            others = [item for item in self._chat_instances(models) if item["model_id"] != profile_config.model_id]
             if others:
                 for item in others:
                     await self._unload_when_idle(str(item.get("id", "")))
                 models = await self.list_models()
-                if any(item["model_id"] != profile_config.model_id for item in self._loaded_instances(models)):
+                if any(item["model_id"] != profile_config.model_id for item in self._chat_instances(models)):
                     raise BackendFailure(
                         "unload_unverified",
                         "a previous model did not unload; the switch is retried on the next job",
@@ -314,7 +320,7 @@ class LMStudioAdapter:
     async def still_loaded_alone(self, loaded: LoadedModel) -> bool:
         # Checked before each batch of jobs. The model the broker last loaded must still be the only one loaded.
         async with self._lifecycle_lock:
-            instances = self._loaded_instances(await self.list_models())
+            instances = self._chat_instances(await self.list_models())
             return (
                 len(instances) == 1
                 and instances[0].get("id") == loaded.instance_id
@@ -424,6 +430,66 @@ class LMStudioAdapter:
         finally:
             self.invalidate_health()
 
+    async def embed(self, profile: str, inputs: list[str]) -> dict[str, Any]:
+        """Embeddings for `inputs` from a resident embedding model, loading it first if needed."""
+        profile_config = self.profiles.get(profile)
+        if profile_config is None:
+            raise BackendFailure("unknown_profile", f"unknown profile: {profile}")
+        if profile_config.kind != "embedding":
+            raise BackendFailure("wrong_profile_kind", f"profile '{profile}' is a chat profile, not an embedding profile")
+        for attempt in range(2):
+            model_key = await self._ensure_resident(profile, profile_config)
+            try:
+                response = await self._request(
+                    "POST", "/v1/embeddings", json={"model": model_key, "input": inputs}, timeout=self.generation_timeout
+                )
+            except BackendFailure as exc:
+                if attempt == 0 and exc.code == "backend_http_error":
+                    # Probably unloaded outside the broker. Forget it, list again, and load it once more.
+                    self._resident.pop(profile, None)
+                    continue
+                raise
+            data = response.json()
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+                raise BackendFailure("invalid_backend_response", "LM Studio returned no embeddings", retryable=True)
+            return data
+        raise BackendFailure("embedding_failed", "LM Studio could not embed the input", retryable=True)
+
+    async def _ensure_resident(self, profile: str, profile_config: ProfileConfig) -> str:
+        cached = self._resident.get(profile)
+        if cached is not None:
+            return cached
+        async with self._resident_lock:
+            cached = self._resident.get(profile)
+            if cached is not None:
+                return cached
+            models = await self.list_models()
+            if self._model_entry(models, profile_config.model_id) is None:
+                raise BackendFailure("model_unavailable", f"configured model is not installed: {profile_config.model_id}")
+            existing = [item for item in self._loaded_instances(models) if item["model_id"] == profile_config.model_id]
+            if existing:
+                instance_id = str(existing[0].get("id"))
+            else:
+                try:
+                    response = await self._request(
+                        "POST",
+                        "/api/v1/models/load",
+                        json={"model": profile_config.model_id, "context_length": profile_config.context_ceiling, "echo_load_config": True},
+                        timeout=self.load_timeout,
+                    )
+                except (TimeoutError, httpx.TimeoutException) as exc:
+                    raise BackendFailure("load_in_flight", "LM Studio load timed out; the next request checks again", retryable=True) from exc
+                except BackendFailure as exc:
+                    raise BackendFailure("model_load_failed", "LM Studio rejected the embedding model load", retryable=True) from exc
+                finally:
+                    self.invalidate_health()
+                value = response.json().get("instance_id")
+                if not isinstance(value, str):
+                    raise BackendFailure("invalid_backend_response", "LM Studio load returned no instance id", retryable=True)
+                instance_id = value
+            self._resident[profile] = instance_id
+            return instance_id
+
     async def complete(self, payload: dict[str, Any]) -> dict[str, Any]:
         response = await self._request("POST", "/v1/chat/completions", json=payload, timeout=self.generation_timeout)
         data = response.json()
@@ -496,6 +562,10 @@ class LMStudioAdapter:
                 f"LM Studio's selected variant does not match the configured variant: {profile_config.variant}",
                 retryable=True,
             )
+
+    def _chat_instances(self, models: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Loaded instances the chat scheduler manages: everything except the resident embedding models."""
+        return [item for item in self._loaded_instances(models) if item["model_id"] not in self._embedding_models]
 
     @staticmethod
     def _loaded_instances(models: list[dict[str, Any]]) -> list[dict[str, Any]]:

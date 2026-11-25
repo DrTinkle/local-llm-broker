@@ -93,6 +93,30 @@ python -m local_llm_broker.cli submit --client my-agent --project my-project --t
 
 `--files` accepts files, folders and quoted globs; `--out` saves the answer to one file; `--detach` returns at once so the agent can keep working (collect the answer with `result <job-id>`). The skill explains when delegating is worth it and how to read failures.
 
+## Embeddings
+
+`setup` finds chat models only, so add an embedding model to `config.toml` by hand (see [operations](./docs/operations.md#embedding-profiles)):
+
+```toml
+[profiles.embed]
+kind = "embedding"
+model_id = "text-embedding-nomic-embed-text-v1.5@f16"
+context_ceiling = 2048
+parallel_ceiling = 4
+```
+
+Restart the broker, then run `llm-broker verify --profiles embed`. Embed text with `llm-broker embed --model embed --project my-project --task index-docs --file lines.txt --out vectors.json`, or point an OpenAI-style client at `http://127.0.0.1:1235/v1/embeddings`. The model stays loaded beside your chat model, and `llm-broker calibrate --mode embeddings` measures its input window and how many requests it handles at once. Text longer than the model's window is cut off, not refused.
+
+## Watching requests
+
+Every request names its client, project and task (`--project` and `--task` are required on `submit` and `embed`). To see them live, run this in a terminal:
+
+```powershell
+python -m local_llm_broker.cli watch
+```
+
+Each line shows who asked, which profile answered, and the time taken, for example `done  my-agent / billing-api / triage-log  ->  4b-nothink  6.43s`. It never shows prompts or answers.
+
 ## Stopping the broker
 
 ```powershell
@@ -112,6 +136,8 @@ This shuts the broker down cleanly. If jobs are queued or running it refuses and
 | `The LM Studio command-line tool (lms) was not found` | Install it from LM Studio, or set `lms_path` under `[broker]` in `config.toml`. |
 | `unknown_profile` from `submit` | The name is not in your config. Run `llm-broker profiles` and use a name from it. |
 | `broker is unavailable` | The broker is not running. Start it with `.\scripts\start-broker.ps1`. |
+| `wrong_profile_kind` | An embedding profile was used for chat, or a chat profile for embeddings. Check the `kind` column of `llm-broker profiles`. |
+| `submit` says `--project` is required | Every request needs `--project` and `--task` names; see "Watching requests". |
 | A profile fails `verify` | Check LM Studio still has that model downloaded, then rerun `setup` for it. |
 
 ## Everyday commands
@@ -139,7 +165,7 @@ Every command and flag is listed in [the skill's command reference](./skills/use
 - [Agent skill](./skills/use-local-models/SKILL.md): how agents decide when and how to delegate.
 - [Design and decisions](./docs/local-llm-broker-design.md): why it works the way it does.
 - [Live verification notes](./docs/live-verification.md): the checks run against a real LM Studio, recorded on the author's machine.
-- [Measurements from one example machine](./docs/measurements-rtx3080ti-12gb) (an RTX 3080 Ti with 12 GB), the data behind the example preset.
+- [Measurements from one example machine](./docs/measurements-rtx3080ti-12gb) (an RTX 3080 Ti with 12 GB), the data behind the example preset, including [an embedding model](./docs/measurements-rtx3080ti-12gb/embedding-nomic-embed-text-v1.5-f16.md).
 
 ## License
 
